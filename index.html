@@ -1,0 +1,327 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>TodoCalendar_ChatTemplate</title>
+    <style>
+        body { font-family: 'Segoe UI', 'Meiryo', sans-serif; background: linear-gradient(135deg, #a1c4fd 0%, #c2e9fb 100%); margin: 0; min-height: 100vh; display: flex; align-items: center; justify-content: center; }
+        .container { background: white; border-radius: 18px; box-shadow: 0 8px 32px rgba(100,140,180,0.2); width: 98vw; max-width: 1100px; min-height: 90vh; display: flex; flex-direction: column; overflow: hidden;}
+        .header { background: linear-gradient(135deg, #a1c4fd 0%, #c2e9fb 100%); color: #1a237e; text-align: center; padding: 2rem 1rem 1rem;}
+        .header h1 { font-size: 2rem; margin: 0 0 10px; }
+        .main { display: flex; flex: 1; }
+        .sidebar { background: #f8f9fa; width: 330px; padding: 2rem 1rem 1rem; border-right: 1px solid #e3eaf7; }
+        .week-header { font-weight: bold; color: #1a237e; margin-bottom: 16px; font-size: 1.1rem;}
+        .day-list { display: flex; flex-direction: column; gap: 10px;}
+        .day-item { background: #fff; border: 2px solid #e3eaf7; border-radius: 10px; padding: 1rem; cursor: pointer; transition: .2s; position: relative;}
+        .day-item.active { border-color: #2196f3; background: #e3f2fd;}
+        .day-item.completed { background: #e0f7fa; border-color: #26a69a;}
+        .day-label { font-weight: bold;}
+        .todo-count { position: absolute; top: 10px; right: 20px; font-size: 0.9rem; background: #90caf9; color: #1a237e; border-radius: 999px; padding: 2px 10px;}
+        .summary { margin-top: 1.5rem;}
+        .summary-title { color: #1976d2; font-weight: bold; margin-bottom: 8px;}
+        .summary-stat { font-size: 0.95rem; margin-bottom: 4px;}
+        .chat { flex: 1; display: flex; flex-direction: column;}
+        .chat-header { padding: 1rem; border-bottom: 1px solid #e3eaf7; background: #f1f8ff;}
+        .chat-messages { flex: 1; overflow-y: auto; padding: 2rem 1rem; background: #f8f9fa;}
+        .message { margin-bottom: 22px; }
+        .bot-message { background: #fff; border-radius: 15px; border-left: 5px solid #2196f3; box-shadow: 0 2px 8px rgba(120,160,200,0.08); padding: 18px;}
+        .user-message { background: #2196f3; color: #fff; border-radius: 15px; margin-left: auto; max-width: 70%; text-align: right; padding: 12px 20px;}
+        .input-row { display: flex; gap: 12px; padding: 1rem; border-top: 1px solid #e3eaf7; background: #fff;}
+        .input-row input { flex: 1; font-size: 1rem; padding: 12px; border-radius: 24px; border: 1.5px solid #cfd8dc;}
+        .input-row button { width: 48px; height: 48px; border: none; border-radius: 50%; background: #2196f3; color: #fff; font-size: 1.4rem; cursor: pointer;}
+        .export-btn, .import-label, .clear-btn { margin-top: 12px; display: block; width: 100%; padding: 10px 0; border-radius: 7px; font-size: 0.97rem; border: none; cursor: pointer;}
+        .export-btn { background: #26a69a; color: #fff; }
+        .import-label { background: #1976d2; color: #fff; text-align: center;}
+        .clear-btn { background: #ef5350; color: #fff; }
+        .import-label input { display: none; }
+        .editor-btn { background: #ffa000; color: #fff; margin: 18px 0 0; width: 100%; }
+        @media (max-width: 900px) { .container {flex-direction:column;} .main {flex-direction:column;} .sidebar {width: 100%; border-right: none;} }
+        /* タブ編集スタイル追加 */
+        .tab-header { display: flex; justify-content: center; gap: 7px; margin-bottom: 18px;}
+        .tab-btn { border: none; background: #e3f2fd; color: #1976d2; font-size: 1rem; border-radius: 10px 10px 0 0; padding: 10px 18px; cursor: pointer; transition:0.2s;}
+        .tab-btn.active { background: #2196f3; color: #fff; font-weight: bold;}
+        .tab-content { padding: 15px 5px 5px 5px;}
+    </style>
+</head>
+<body>
+<div class="container">
+    <div class="header">
+        <h1>TodoCalendar_ChatTemplate <span style="font-size:1.2rem;">📝</span></h1>
+        <p>「仕事」「生活」「健康」「学習」…<br>どんな用途にも使えるカレンダー式タスク管理チャットボット</p>
+    </div>
+    <div class="main">
+        <div class="sidebar">
+            <div class="week-header">今週のTO DO</div>
+            <div class="day-list" id="daysList"></div>
+            <button class="editor-btn" onclick="openTodoEditor()">✏️ タスク編集</button>
+            <div class="summary">
+                <div class="summary-title">進捗サマリー</div>
+                <div class="summary-stat" id="summaryTasks"></div>
+                <div class="summary-stat" id="summaryCompleted"></div>
+                <div class="summary-stat" id="summaryRate"></div>
+            </div>
+            <button class="export-btn" onclick="exportData()">📥 データをエクスポート</button>
+            <label class="import-label">
+                📤 データをインポート
+                <input type="file" accept=".json" onchange="importData(event)">
+            </label>
+            <button class="clear-btn" onclick="clearData()">🗑️ データをクリア</button>
+            <div style="margin-top:10px; font-size:0.88rem; color:#888;">※ データは自動保存されます</div>
+        </div>
+        <div class="chat">
+            <div class="chat-header">
+                <div id="chatTitle">TO DOチャットボット</div>
+            </div>
+            <div class="chat-messages" id="chatMessages">
+                <div class="message bot-message">左のカレンダーから日を選択して、今日のタスク管理を始めましょう！</div>
+            </div>
+            <div class="input-row" id="inputContainer" style="display:none;">
+                <input type="text" id="userInput" placeholder="メモや進捗コメントを入力…" onkeypress="if(event.key==='Enter') handleUserInput()">
+                <button onclick="handleUserInput()">➤</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+const dayNames = ['日', '月', '火', '水', '木', '金', '土'];
+const sampleTodos = [
+    ['今日の目標を立てる', 'タスクを整理', 'ストレッチや軽い運動'],
+    ['重要タスクを着手', 'メール・連絡', '隙間時間の活用'],
+    ['進捗確認', '自己評価', '本を読む'],
+    ['新しいことを学ぶ', '健康管理', '小さなご褒美'],
+    ['1週間の振り返り', '来週の準備', '早めの休息'],
+    ['家族や友人との交流', '趣味・リラックスタイム'],
+    ['自由記入（オフの日など）']
+];
+
+let weekData = {
+    startDate: new Date(),
+    days: [],
+    currentDay: null,
+    chatHistory: {}
+};
+
+function initializeWeek() {
+    const today = new Date();
+    const monday = new Date(today);
+    monday.setDate(today.getDate() - today.getDay() + 1);
+    weekData.startDate = monday;
+    weekData.days = [];
+    for (let i = 0; i < 7; i++) {
+        const date = new Date(monday);
+        date.setDate(monday.getDate() + i);
+        weekData.days.push({
+            date: date,
+            dayName: dayNames[date.getDay()],
+            todos: sampleTodos[i] || [],
+            completed: [],
+            inProgress: [],
+            notes: {},
+            isCompleted: false
+        });
+    }
+    renderCalendar();
+    updateSummary();
+}
+function renderCalendar() {
+    const daysList = document.getElementById('daysList');
+    daysList.innerHTML = '';
+    weekData.days.forEach((day, index) => {
+        const item = document.createElement('div');
+        item.className = 'day-item' + (weekData.currentDay===index ? ' active':'') + (day.isCompleted?' completed':'');
+        item.onclick = () => selectDay(index);
+        item.innerHTML = `<div class="day-label">${day.dayName}曜日</div>
+        <div>${day.date.getMonth()+1}/${day.date.getDate()}</div>
+        <span class="todo-count">${day.todos.length}</span>`;
+        daysList.appendChild(item);
+    });
+}
+function selectDay(idx) {
+    weekData.currentDay = idx;
+    renderCalendar();
+    showChat(idx);
+    document.getElementById('inputContainer').style.display = 'flex';
+}
+function showChat(idx) {
+    const day = weekData.days[idx];
+    const chatMessages = document.getElementById('chatMessages');
+    chatMessages.innerHTML = '';
+    addMessage(`今日は${day.dayName}曜日（${day.date.getMonth()+1}/${day.date.getDate()}）です。\nタスク数: ${day.todos.length}`, false);
+    if(day.todos.length){
+        day.todos.forEach((t,i)=>{
+            const done = day.completed.includes(i) ? '（完了）':'';
+            addMessage(`${i+1}. ${t}${done}`, false);
+        });
+        addMessage("完了したタスクは番号で入力してください（例: 1）", false);
+    } else {
+        addMessage("本日はタスクがありません。", false);
+    }
+}
+function addMessage(text, isUser) {
+    const msgDiv = document.createElement('div');
+    msgDiv.className = 'message ' + (isUser?'user-message':'bot-message');
+    msgDiv.textContent = text;
+    document.getElementById('chatMessages').appendChild(msgDiv);
+    document.getElementById('chatMessages').scrollTop = document.getElementById('chatMessages').scrollHeight;
+}
+function handleUserInput() {
+    const input = document.getElementById('userInput');
+    const value = input.value.trim();
+    if(!value) return;
+    addMessage(value, true);
+    const idx = weekData.currentDay;
+    const day = weekData.days[idx];
+    if(/^\d+$/.test(value) && +value>=1 && +value<=day.todos.length){
+        const tIdx = +value-1;
+        if(!day.completed.includes(tIdx)){
+            day.completed.push(tIdx);
+            addMessage(`「${day.todos[tIdx]}」を完了にしました！`, false);
+            if(day.completed.length === day.todos.length){
+                day.isCompleted = true;
+                addMessage("本日のタスクをすべて完了しました！お疲れさまです！", false);
+            }
+        } else {
+            addMessage("すでに完了しています。", false);
+        }
+        updateSummary();
+        renderCalendar();
+    } else {
+        if(!day.notes) day.notes = {};
+        const now = new Date().toLocaleTimeString();
+        day.notes[now] = value;
+        addMessage("メモを記録しました。", false);
+    }
+    input.value = '';
+    saveData();
+}
+function updateSummary() {
+    const total = weekData.days.reduce((s,d)=>s+d.todos.length,0);
+    const done = weekData.days.reduce((s,d)=>s+d.completed.length,0);
+    document.getElementById('summaryTasks').textContent = "総タスク数: "+total;
+    document.getElementById('summaryCompleted').textContent = "完了タスク: "+done;
+    document.getElementById('summaryRate').textContent = "達成率: "+(total?Math.round(done/total*100):0)+"%";
+}
+
+/* --- タブ切り替え式 編集モーダル --- */
+let currentEditTab = 0;
+function openTodoEditor() {
+    const todayIdx = (new Date()).getDay(); // 0:日〜6:土
+    currentEditTab = todayIdx === 0 ? 6 : todayIdx-1; // 月曜スタート調整
+    const modal = document.createElement('div');
+    modal.style = "position:fixed;top:0;left:0;width:100vw;height:100vh;background:rgba(0,0,0,0.4);display:flex;justify-content:center;align-items:center;z-index:9999;";
+    modal.innerHTML = `<div style="background:white;border-radius:15px;max-width:500px;width:90vw;padding:30px;">
+    <h3 style="color:#2196f3;margin-top:0;">✏️ 週間TO DO編集</h3>
+    <div id="editorTabHeader"></div>
+    <div id="editorTabContent"></div>
+    <div style="text-align:right;margin-top:20px;">
+      <button onclick="document.body.removeChild(this.closest('div[style*=fixed]'))" style="padding:8px 20px;margin-right:8px;">キャンセル</button>
+      <button onclick="saveTodoChanges()" style="padding:8px 20px;background:#26a69a;color:white;border:none;border-radius:7px;">保存</button>
+    </div>
+    </div>`;
+    document.body.appendChild(modal);
+    renderEditorTabs();
+    window.saveTodoChanges = function(){
+        modal.remove();
+        renderCalendar();
+        updateSummary();
+        saveData();
+    };
+}
+function renderEditorTabs() {
+    const header = document.getElementById('editorTabHeader');
+    const content = document.getElementById('editorTabContent');
+    // タブヘッダー
+    header.innerHTML = '';
+    weekData.days.forEach((d,di)=>{
+        const btn = document.createElement('button');
+        btn.textContent = `${d.dayName}曜日 (${d.date.getMonth()+1}/${d.date.getDate()})`;
+        btn.className = 'tab-btn' + (di===currentEditTab ? ' active':'');
+        btn.onclick = ()=>{ currentEditTab=di; renderEditorTabs(); };
+        header.appendChild(btn);
+    });
+    // タブコンテンツ
+    content.innerHTML = '';
+    const d = weekData.days[currentEditTab];
+    const block = document.createElement('div');
+    block.className = 'tab-content';
+    d.todos.forEach((t,ti)=>{
+        const row = document.createElement('div');
+        row.style = "display:flex;align-items:center;margin-bottom:8px;";
+        const input = document.createElement('input');
+        input.value = t;
+        input.onchange = ()=>d.todos[ti]=input.value;
+        input.style = "margin:5px 0;width:80%;padding:5px;";
+        row.appendChild(input);
+        const del = document.createElement('button');
+        del.textContent = "🗑";
+        del.style = "margin-left:5px;";
+        del.onclick = ()=>{ d.todos.splice(ti,1); renderEditorTabs(); };
+        row.appendChild(del);
+        block.appendChild(row);
+    });
+    const addBtn = document.createElement('button');
+    addBtn.textContent = "➕ タスク追加";
+    addBtn.onclick = ()=>{ d.todos.push(''); renderEditorTabs(); };
+    addBtn.style = "margin:10px 0;";
+    block.appendChild(addBtn);
+    content.appendChild(block);
+}
+
+function exportData(){
+    const blob = new Blob([JSON.stringify({weekData,exportDate:new Date(),version:"1.0"},null,2)],{type:'application/json'});
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `todo_data_${new Date().toISOString().split('T')[0]}.json`;
+    document.body.appendChild(a); a.click(); document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+}
+function importData(e){
+    const file = e.target.files[0];
+    if(!file) return;
+    const reader = new FileReader();
+    reader.onload = function(evt){
+        try{
+            const d = JSON.parse(evt.target.result);
+            if(d.weekData){
+                d.weekData.days.forEach(day=>day.date=new Date(day.date));
+                d.weekData.startDate=new Date(d.weekData.startDate);
+                weekData = d.weekData;
+                renderCalendar(); updateSummary();
+                alert("✅ データをインポートしました");
+            }
+        }catch(err){ alert("❌ 読み込み失敗: "+err.message);}
+    };
+    reader.readAsText(file);
+}
+function clearData(){
+    if(confirm("全データを消去しますか？")){
+        localStorage.removeItem("weekly_todo_data_template");
+        location.reload();
+    }
+}
+function saveData(){
+    localStorage.setItem("weekly_todo_data_template", JSON.stringify(weekData));
+}
+function loadData(){
+    try{
+        const d = localStorage.getItem("weekly_todo_data_template");
+        if(d){
+            const data = JSON.parse(d);
+            data.days.forEach(day=>day.date=new Date(day.date));
+            data.startDate=new Date(data.startDate);
+            weekData=data;
+            renderCalendar(); updateSummary();
+            return true;
+        }
+    }catch(e){}
+    return false;
+}
+document.addEventListener('DOMContentLoaded', function(){
+    if(!loadData()) initializeWeek();
+});
+</script>
+</body>
+</html>
